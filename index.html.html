@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Змейка на Python</title>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/brython@3.9.5/brython.min.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/brython@3.9.5/brython_stdlib.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background-color: #222;
+      color: white;
+    }
+    canvas {
+      background-color: #111;
+      border: 2px solid #fff;
+      margin-top: 20px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      border-radius: 10px;
+      border: none;
+    }
+    #info {
+      margin-top: 10px;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body onload="brython()">
+  <h1>🐍 Змейка на Python</h1>
+  <div id="info">Счёт: <span id="score">0</span> | Рекорд: <span id="highscore">0</span></div>
+  <canvas id="game" width="400" height="400"></canvas><br>
+  <button onclick="start_game()">Новая игра</button>
+
+  <script type="text/python">
+    from browser import document, html, timer
+    import random
+
+    canvas = document["game"]
+    ctx = canvas.getContext("2d")
+
+    cell_size = 20
+    width, height = 20, 20
+    direction = "RIGHT"
+    snake = []
+    food = (0, 0)
+    game_running = False
+    game_loop = None
+    score = 0
+    highscore = 0
+    flash_counter = 0
+
+    def update_score():
+        document["score"].text = str(score)
+        document["highscore"].text = str(highscore)
+
+    def draw_cell(x, y, color):
+        ctx.fillStyle = color
+        ctx.fillRect(x * cell_size, y * cell_size, cell_size - 2, cell_size - 2)
+
+    def place_food():
+        global food
+        while True:
+            x, y = random.randint(0, width - 1), random.randint(0, height - 1)
+            if (x, y) not in snake:
+                food = (x, y)
+                break
+
+    def draw():
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        for i, (x, y) in enumerate(snake):
+            color = "lime" if i == 0 else "green"
+            draw_cell(x, y, color)
+        if flash_counter % 2 == 0:
+            draw_cell(food[0], food[1], "red")
+
+    def move():
+        global game_running, game_loop, score, highscore, flash_counter
+        if not game_running:
+            return
+        head_x, head_y = snake[0]
+        if direction == "UP": head_y -= 1
+        if direction == "DOWN": head_y += 1
+        if direction == "LEFT": head_x -= 1
+        if direction == "RIGHT": head_x += 1
+
+        new_head = (head_x, head_y)
+
+        if (new_head in snake) or not (0 <= head_x < width) or not (0 <= head_y < height):
+            game_over()
+            return
+
+        snake.insert(0, new_head)
+        if new_head == food:
+            score += 1
+            if score > highscore:
+                highscore = score
+            update_score()
+            flash_counter = 6  # Вспышка еды на 3 хода
+            place_food()
+        else:
+            snake.pop()
+
+        if flash_counter > 0:
+            flash_counter -= 1
+
+        draw()
+
+    def game_over():
+        global game_running, game_loop
+        game_running = False
+        timer.clear_interval(game_loop)
+        ctx.fillStyle = "white"
+        ctx.font = "28px sans-serif"
+        ctx.fillText("Игра окончена", 100, 200)
+
+    def start_game():
+        global direction, snake, food, game_running, game_loop, score, flash_counter
+        direction = "RIGHT"
+        snake = [(5, 5)]
+        place_food()
+        score = 0
+        flash_counter = 0
+        update_score()
+        draw()
+        game_running = True
+        if game_loop:
+            timer.clear_interval(game_loop)
+        game_loop = timer.set_interval(move, 150)
+
+    def on_key(event):
+        global direction
+        key = event.keyCode
+        if key == 37 and direction != "RIGHT":
+            direction = "LEFT"
+        elif key == 38 and direction != "DOWN":
+            direction = "UP"
+        elif key == 39 and direction != "LEFT":
+            direction = "RIGHT"
+        elif key == 40 and direction != "UP":
+            direction = "DOWN"
+
+    document.bind("keydown", on_key)
+  </script>
+
+  <script>
+    function start_game() {
+      if (typeof start_game_py === 'undefined') {
+        start_game_py = window.__BRYTHON__.python_to_js('start_game()', '__main__');
+      }
+      eval(start_game_py);
+    }
+  </script>
+</body>
+</html>
